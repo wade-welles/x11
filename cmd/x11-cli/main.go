@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/wade-welles/streamkit/x11"
+	"github.com/wade-welles/x11"
 )
 
 type Application struct {
@@ -21,7 +21,7 @@ func main() {
 		X11: &x11.X11{
 			Client: x11.ConnectToX11(),
 		},
-		Delay: 8 * time.Second,
+		Delay: 2 * time.Second,
 	}
 
 	x11App.X11.InitActiveWindow()
@@ -29,7 +29,7 @@ func main() {
 	// TODO: Probably want to load some settings from a YAML config to make things
 	// easier
 
-	fmt.Printf("x11App:%v \n", x11App)
+	fmt.Printf("x11App:\n")
 
 	tick := time.Tick(x11App.Delay)
 	for {
@@ -37,9 +37,22 @@ func main() {
 		case <-tick:
 			if x11App.X11.HasActiveWindowChanged() {
 				fmt.Printf("HasActiveWindowChanged() => true\n")
+
+				activeWindow := x11App.X11.ActiveWindow()
+
+				fmt.Printf("  active_window:%v\n", activeWindow)
+				fmt.Printf("  active_window_string:%s\n", activeWindowString())
+
+				fmt.Printf("  active_window_string:%s\n", x11App.X11.ActiveWindowString())
+
+				fmt.Printf(
+					"*.X11.CacheActiveWindow() => %v\n",
+					x11App.X11.CacheActiveWindow(),
+				)
+
+			} else {
+				fmt.Printf("tick,...")
 			}
-		default:
-			fmt.Printf("tick..\n")
 		}
 	}
 

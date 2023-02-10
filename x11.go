@@ -20,19 +20,24 @@ type WindowName uint8 // 0..255
 
 const (
 	UndefinedName WindowName = iota
-	Primary
-	Secondary
-	Chromium
+	Terminal
+	Browser
+	Other
 )
 
+// TODO: For now we can extend it by tracking for specific types of windows say:
+// FileManager, Browser, Terminal, Other
+//
+//	Then we store the actual title from the window on it and use it to decipher
+//	it into a selction of rebuilt tools
 func (wt WindowName) String() string {
 	switch wt {
-	case Primary:
-		return "primary"
-	case Secondary:
-		return "secondary"
-	case Chromium:
-		return "chromium"
+	case Terminal:
+		return "terminal"
+	case Browser:
+		return "browser"
+	case Other:
+		return "other"
 	default: // UndefinedName
 		return "undefined"
 	}
@@ -40,12 +45,12 @@ func (wt WindowName) String() string {
 
 func MarshalWindowName(wt string) WindowName {
 	switch strings.ToLower(wt) {
-	case Primary.String():
-		return Primary
-	case Secondary.String():
-		return Secondary
-	case Chromium.String():
-		return Chromium
+	case Terminal.String():
+		return Terminal
+	case Browser.String():
+		return Browser
+	case Other.String():
+		return Other
 	default: // UndefinedName
 		return UndefinedName
 	}
@@ -95,11 +100,26 @@ func (x *X11) ActiveWindow() WindowName {
 		return UndefinedName
 	}
 
-	if strings.HasSuffix(strings.ToLower(activeWindowName), Chromium.String()) {
-		return Chromium
+	if strings.HasSuffix(strings.ToLower(activeWindowName), "chromium") {
+		return Browser
 	} else {
 		return MarshalWindowName(activeWindowName)
 	}
+}
+
+func (x *X11) ActiveWindowString() string {
+	windowName, err := ewmh.GetActiveWindow(x.Client).Reply(x.Client)
+	if err != nil {
+		fmt.Println("error(ewmh.GetActiveWindow(x.Client)...):", err)
+		return UndefinedName
+	}
+
+	activeWindowName, err := ewmh.GetWMName(x.Client, windowName).Reply(x.Client)
+	if err != nil {
+		fmt.Println("error(ewmh.GetWMName(x.Client, windowName)...):", err)
+		return UndefinedName
+	}
+	return activeWindowName
 }
 
 func (x *X11) InitActiveWindow() WindowName {
