@@ -6,7 +6,7 @@ import (
 
 func main() {
 	fmt.Printf("x11-cli\n")
-	fmt.Printf("=======")
-	fmt.Printf("Currently not yet implemented.")
+	fmt.Printf("=======\n")
+	fmt.Printf("Currently not yet implemented.\n")
 
 }
