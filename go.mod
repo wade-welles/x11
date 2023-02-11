@@ -1,4 +1,4 @@
-module github.com/wade-welles/streamkit/x11
+module github.com/wade-welles/x11
 
 go 1.19
 

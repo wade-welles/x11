@@ -9,28 +9,27 @@ import (
 	ewmh "github.com/linuxdeepin/go-x11-client/util/wm/ewmh"
 )
 
+type Windows []*Window
+
+// TODO: Maybe desktop, always ontop, always on desktop, etc
 type Window struct {
-	Name    WindowName
+	Name    string
+	Type    WindowType
 	Focused bool // aka Active
 }
 
-type Windows []*Window
+var UndefinedWindow = Window{Name: "undefined", Type: UndefinedType}
 
-type WindowName uint8 // 0..255
+type WindowType uint8 // 0..255
 
 const (
-	UndefinedName WindowName = iota
+	UndefinedType WindowType = iota
 	Terminal
 	Browser
 	Other
 )
 
-// TODO: For now we can extend it by tracking for specific types of windows say:
-// FileManager, Browser, Terminal, Other
-//
-//	Then we store the actual title from the window on it and use it to decipher
-//	it into a selction of rebuilt tools
-func (wt WindowName) String() string {
+func (wt WindowType) String() string {
 	switch wt {
 	case Terminal:
 		return "terminal"
@@ -38,12 +37,12 @@ func (wt WindowName) String() string {
 		return "browser"
 	case Other:
 		return "other"
-	default: // UndefinedName
+	default: // UndefinedType
 		return "undefined"
 	}
 }
 
-func MarshalWindowName(wt string) WindowName {
+func MarshalWindowType(wt string) WindowType {
 	switch strings.ToLower(wt) {
 	case Terminal.String():
 		return Terminal
@@ -51,17 +50,19 @@ func MarshalWindowName(wt string) WindowName {
 		return Browser
 	case Other.String():
 		return Other
-	default: // UndefinedName
-		return UndefinedName
+	default: // UndefinedType
+		return UndefinedType
 	}
 }
 
 // //////////////////////////////////////////////////////////////////////////////
 type X11 struct {
-	Client *x11.Conn
+	Client  *x11.Conn
+	Windows []Window
 
-	CurrentWindow WindowName
-
+	// TODO: Maybe just cache the active window name so we do simple name
+	// comparison
+	ActiveWindowName      string
 	ActiveWindowChangedAt time.Time
 }
 
@@ -73,73 +74,58 @@ func ConnectToX11() *x11.Conn {
 	return client
 }
 
-// TODO: X11 =(should return a Window() function=> WindowName type
-func (x *X11) Window() WindowName {
-	x.CacheActiveWindow()
-	return x.CurrentWindow
-}
-
 func (x *X11) HasActiveWindowChanged() bool {
-	// NOTE
-	// If we record time last active window change happened, then we can limit
-	// the number of times it can change within x amount of time for better
-	// reliability under pressure.
-	return !x.IsCurrentWindow(x.ActiveWindow())
+	return !(x.ActiveWindowName == x.ActiveWindow().Name)
 }
 
-func (x *X11) ActiveWindow() WindowName {
+func (x *X11) ActiveWindow() Window {
 	windowName, err := ewmh.GetActiveWindow(x.Client).Reply(x.Client)
 	if err != nil {
 		fmt.Println("error(ewmh.GetActiveWindow(x.Client)...):", err)
-		return UndefinedName
+		return UndefinedWindow
 	}
 
 	activeWindowName, err := ewmh.GetWMName(x.Client, windowName).Reply(x.Client)
 	if err != nil {
 		fmt.Println("error(ewmh.GetWMName(x.Client, windowName)...):", err)
-		return UndefinedName
+		return UndefinedWindow
 	}
 
+	activeWindow := Window{
+		Name: activeWindowName,
+	}
+
+	// TODO: Switch case to determine the window type, this will be useful for
+	// simplifying automation. Needs to also detect Tor/Firefox/etc
 	if strings.HasSuffix(strings.ToLower(activeWindowName), "chromium") {
-		return Browser
+		activeWindow.Type = Browser
+		return activeWindow
 	} else {
-		return MarshalWindowName(activeWindowName)
+		activeWindow.Type = UndefinedType
+		return activeWindow
 	}
 }
 
-func (x *X11) ActiveWindowString() string {
-	windowName, err := ewmh.GetActiveWindow(x.Client).Reply(x.Client)
-	if err != nil {
-		fmt.Println("error(ewmh.GetActiveWindow(x.Client)...):", err)
-		return UndefinedName
-	}
-
-	activeWindowName, err := ewmh.GetWMName(x.Client, windowName).Reply(x.Client)
-	if err != nil {
-		fmt.Println("error(ewmh.GetWMName(x.Client, windowName)...):", err)
-		return UndefinedName
-	}
-	return activeWindowName
-}
-
-func (x *X11) InitActiveWindow() WindowName {
-	x.CurrentWindow = Primary
+func (x *X11) InitActiveWindow() Window {
+	activeWindow := x.ActiveWindow()
+	x.ActiveWindowName = activeWindow.Name
 	x.ActiveWindowChangedAt = time.Now()
-	return x.CurrentWindow
+	return activeWindow
 }
 
-func (x *X11) CacheActiveWindow() WindowName {
-	x.CurrentWindow = x.ActiveWindow()
+func (x *X11) CacheActiveWindow() Window {
+	activeWindow := x.ActiveWindow()
+	x.ActiveWindowName = x.ActiveWindow().Name
 	x.ActiveWindowChangedAt = time.Now()
-	return x.CurrentWindow
+	return activeWindow
 }
 
-// TODO: Naming issue here bigger than may originally appear
-// x.IsActiveWindow(Primary)
-func (x *X11) IsActiveWindow(windowName WindowName) bool {
-	return x.ActiveWindow() == windowName
+func (x *X11) IsActiveWindowType(windowType WindowType) bool {
+	return x.ActiveWindow().Type == windowType
 }
 
-func (x *X11) IsCurrentWindow(windowName WindowName) bool {
-	return x.CurrentWindow == windowName
+func (x *X11) IsActiveWindow(searchText string) bool {
+	// TODO: Should this be checking against x.ActiveWindow().Name or
+	//       x.ActiveWindowName
+	return strings.HasSuffix(strings.ToLower(x.ActiveWindowName), searchText)
 }
