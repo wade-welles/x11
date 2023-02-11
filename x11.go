@@ -12,62 +12,14 @@ import (
 // TODO: Our system doesn't work when the windows have the same name, which is a
 // clear issue. We need a way to distinguish windows better than the name.
 
-type Windows []*Window
-
-// TODO: Maybe desktop, always ontop, always on desktop, etc, definitely should
-// include order, and desktop, and other facts.
-// We will absolutely need a way to run javascript on the browser window page so
-// we can set it to 160p preferably or eventually randomize to 160p to 320
-type Window struct {
-	Name    string
-	Type    WindowType
-	Focused bool // aka Active
-}
-
-var UndefinedWindow = Window{Name: "undefined", Type: UndefinedType}
-
-type WindowType uint8 // 0..255
-
-const (
-	UndefinedType WindowType = iota
-	Terminal
-	Browser
-	Other
-)
-
-func (wt WindowType) String() string {
-	switch wt {
-	case Terminal:
-		return "terminal"
-	case Browser:
-		return "browser"
-	case Other:
-		return "other"
-	default: // UndefinedType
-		return "undefined"
-	}
-}
-
-func MarshalWindowType(wt string) WindowType {
-	switch strings.ToLower(wt) {
-	case Terminal.String():
-		return Terminal
-	case Browser.String():
-		return Browser
-	case Other.String():
-		return Other
-	default:
-		return UndefinedType
-	}
-}
-
 // //////////////////////////////////////////////////////////////////////////////
 type X11 struct {
 	Client  *x11.Conn
 	Windows []Window
 
 	// TODO: Maybe just cache the active window name so we do simple name
-	// comparison
+	// comparison, but this leads to a bug where two windows with the same name
+	// are considered the name window
 	ActiveWindowName      string
 	ActiveWindowChangedAt time.Time
 }
@@ -80,6 +32,9 @@ func ConnectToX11() *x11.Conn {
 	return client
 }
 
+// TODO: If we can move some of these to be methods of Window struct, it would
+// be better organized but there will be obvious limitations we have to work
+// through
 func (x *X11) HasActiveWindowChanged() bool {
 	return !(x.ActiveWindowName == x.ActiveWindow().Name)
 }
