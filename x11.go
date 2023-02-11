@@ -9,9 +9,15 @@ import (
 	ewmh "github.com/linuxdeepin/go-x11-client/util/wm/ewmh"
 )
 
+// TODO: Our system doesn't work when the windows have the same name, which is a
+// clear issue. We need a way to distinguish windows better than the name.
+
 type Windows []*Window
 
-// TODO: Maybe desktop, always ontop, always on desktop, etc
+// TODO: Maybe desktop, always ontop, always on desktop, etc, definitely should
+// include order, and desktop, and other facts.
+// We will absolutely need a way to run javascript on the browser window page so
+// we can set it to 160p preferably or eventually randomize to 160p to 320
 type Window struct {
 	Name    string
 	Type    WindowType
@@ -50,7 +56,7 @@ func MarshalWindowType(wt string) WindowType {
 		return Browser
 	case Other.String():
 		return Other
-	default: // UndefinedType
+	default:
 		return UndefinedType
 	}
 }
@@ -97,13 +103,17 @@ func (x *X11) ActiveWindow() Window {
 
 	// TODO: Switch case to determine the window type, this will be useful for
 	// simplifying automation. Needs to also detect Tor/Firefox/etc
-	if strings.HasSuffix(strings.ToLower(activeWindowName), "chromium") {
+	//   * Switch case so we can load Browser if chromium/firefox/tor etc
+	switch {
+	case strings.HasSuffix(strings.ToLower(activeWindowName), "chromium"):
 		activeWindow.Type = Browser
-		return activeWindow
-	} else {
+	case strings.HasSuffix(strings.ToLower(activeWindowName), "user@host"):
+		activeWindow.Type = Terminal
+	default:
 		activeWindow.Type = UndefinedType
-		return activeWindow
 	}
+
+	return activeWindow
 }
 
 func (x *X11) InitActiveWindow() Window {
@@ -125,7 +135,5 @@ func (x *X11) IsActiveWindowType(windowType WindowType) bool {
 }
 
 func (x *X11) IsActiveWindow(searchText string) bool {
-	// TODO: Should this be checking against x.ActiveWindow().Name or
-	//       x.ActiveWindowName
 	return strings.HasSuffix(strings.ToLower(x.ActiveWindowName), searchText)
 }

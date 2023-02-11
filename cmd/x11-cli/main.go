@@ -65,8 +65,17 @@ func main() {
 
 				fmt.Printf("  x11.ActiveWindowName: %v\n", x11App.X11.ActiveWindowName)
 
+				// NOTE: This worked to prevent it from repeating
+				// HasActiveWindowChanged() over and over
+				x11App.X11.CacheActiveWindow()
+
 			} else {
-				fmt.Printf("tick,...")
+				fmt.Printf("tick,...\n")
+				fmt.Printf("  x11.ActiveWindowName: %v\n", x11App.X11.ActiveWindowName)
+				fmt.Printf(
+					"  x11.ActiveWindow().Type.String(): %v\n",
+					x11App.X11.ActiveWindow().Type.String(),
+				)
 			}
 		}
 	}
